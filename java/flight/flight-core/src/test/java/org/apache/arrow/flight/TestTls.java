@@ -17,10 +17,13 @@
 
 package org.apache.arrow.flight;
 
+import static org.apache.arrow.flight.FlightTestUtil.buildStringWrapper;
+import static org.apache.arrow.flight.FlightTestUtil.unpackOrAssert;
+import static org.apache.arrow.flight.wrappers.impl.Wrappers.stringWrapper;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
@@ -43,9 +46,10 @@ public class TestTls {
     test((builder) -> {
       try (final InputStream roots = new FileInputStream(FlightTestUtil.exampleTlsRootCert().toFile());
           final FlightClient client = builder.trustedCertificates(roots).build()) {
+        Assert.assertNotNull(client);
         final Iterator<Result> responses = client.doAction(new Action("hello-world"));
-        final byte[] response = responses.next().getBody();
-        Assert.assertEquals("Hello, world!", new String(response, StandardCharsets.UTF_8));
+        final stringWrapper response = unpackOrAssert(responses.next().getBody(), stringWrapper.class);
+        Assert.assertEquals("Hello, world!", response.getMessage());
         Assert.assertFalse(responses.hasNext());
       } catch (InterruptedException | IOException e) {
         throw new RuntimeException(e);
@@ -114,7 +118,7 @@ public class TestTls {
     @Override
     public void doAction(CallContext context, Action action, StreamListener<Result> listener) {
       if (action.getType().equals("hello-world")) {
-        listener.onNext(new Result("Hello, world!".getBytes(StandardCharsets.UTF_8)));
+        listener.onNext(new Result(buildStringWrapper("Hello, world!")));
         listener.onCompleted();
         return;
       }

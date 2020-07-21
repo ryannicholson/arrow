@@ -19,6 +19,7 @@
 syntax = "proto3";
 
 option java_package = "org.apache.arrow.flight.impl";
+import "google/protobuf/any.proto";
 package arrow.flight.protocol;
 
 /*
@@ -176,14 +177,14 @@ message Criteria {
  */
 message Action {
   string type = 1;
-  bytes body = 2;
+  google.protobuf.Any body = 2;
 }
 
 /*
  * An opaque result returned after executing an action.
  */
 message Result {
-  bytes body = 1;
+  google.protobuf.Any body = 1;
 }
 
 /*
@@ -227,7 +228,7 @@ message FlightDescriptor {
    * Opaque value used to express a command. Should only be defined when
    * type = CMD.
    */
-  bytes cmd = 2;
+  google.protobuf.Any cmd = 2;
 
   /*
    * List of strings identifying a particular dataset. Should only be defined

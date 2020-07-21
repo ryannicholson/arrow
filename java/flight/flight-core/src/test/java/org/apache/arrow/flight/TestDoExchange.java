@@ -23,11 +23,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.IntStream;
 
+import org.apache.arrow.flight.doexchange.impl.DoExchange;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -46,12 +46,9 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.protobuf.Any;
+
 public class TestDoExchange {
-  static byte[] EXCHANGE_DO_GET = "do-get".getBytes(StandardCharsets.UTF_8);
-  static byte[] EXCHANGE_DO_PUT = "do-put".getBytes(StandardCharsets.UTF_8);
-  static byte[] EXCHANGE_ECHO = "echo".getBytes(StandardCharsets.UTF_8);
-  static byte[] EXCHANGE_METADATA_ONLY = "only-metadata".getBytes(StandardCharsets.UTF_8);
-  static byte[] EXCHANGE_TRANSFORM = "transform".getBytes(StandardCharsets.UTF_8);
 
   private BufferAllocator allocator;
   private FlightServer server;
@@ -77,7 +74,7 @@ public class TestDoExchange {
   public void testDoExchangeOnlyMetadata() throws Exception {
     // Send a particular descriptor to the server and check for a particular response pattern.
     try (final FlightClient.ExchangeReaderWriter stream =
-             client.doExchange(FlightDescriptor.command(EXCHANGE_METADATA_ONLY))) {
+             client.doExchange(FlightDescriptor.command(Any.pack(DoExchange.onlyMetadata.getDefaultInstance())))) {
       final FlightStream reader = stream.getReader();
 
       // Server starts by sending a message without data (hence no VectorSchemaRoot should be present)
@@ -105,7 +102,7 @@ public class TestDoExchange {
   @Test
   public void testDoExchangeDoGet() throws Exception {
     try (final FlightClient.ExchangeReaderWriter stream =
-             client.doExchange(FlightDescriptor.command(EXCHANGE_DO_GET))) {
+             client.doExchange(FlightDescriptor.command(Any.pack(DoExchange.doGet.getDefaultInstance())))) {
       final FlightStream reader = stream.getReader();
       VectorSchemaRoot root = reader.getRoot();
       IntVector iv = (IntVector) root.getVector("a");
@@ -126,7 +123,7 @@ public class TestDoExchange {
   public void testDoExchangeDoPut() throws Exception {
     final Schema schema = new Schema(Collections.singletonList(Field.nullable("a", new ArrowType.Int(32, true))));
     try (final FlightClient.ExchangeReaderWriter stream =
-             client.doExchange(FlightDescriptor.command(EXCHANGE_DO_PUT));
+             client.doExchange(FlightDescriptor.command(Any.pack(DoExchange.doPut.getDefaultInstance())));
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
       IntVector iv = (IntVector) root.getVector("a");
       iv.allocateNew();
@@ -158,7 +155,8 @@ public class TestDoExchange {
   @Test
   public void testDoExchangeEcho() throws Exception {
     final Schema schema = new Schema(Collections.singletonList(Field.nullable("a", new ArrowType.Int(32, true))));
-    try (final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(EXCHANGE_ECHO));
+    try (final FlightClient.ExchangeReaderWriter stream =
+                 client.doExchange(FlightDescriptor.command(Any.pack(DoExchange.echo.getDefaultInstance())));
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
       final FlightStream reader = stream.getReader();
 
@@ -208,7 +206,7 @@ public class TestDoExchange {
         Field.nullable("a", new ArrowType.Int(32, true)),
         Field.nullable("b", new ArrowType.Int(32, true))));
     try (final FlightClient.ExchangeReaderWriter stream =
-             client.doExchange(FlightDescriptor.command(EXCHANGE_TRANSFORM))) {
+             client.doExchange(FlightDescriptor.command(Any.pack(DoExchange.transform.getDefaultInstance())))) {
       // Write ten batches of data to the stream, where batch N contains N rows of data (N in [0, 10))
       final FlightStream reader = stream.getReader();
       final FlightClient.ClientStreamListener writer = stream.getWriter();
@@ -256,15 +254,15 @@ public class TestDoExchange {
 
     @Override
     public void doExchange(CallContext context, FlightStream reader, ServerStreamListener writer) {
-      if (Arrays.equals(reader.getDescriptor().getCommand(), EXCHANGE_METADATA_ONLY)) {
+      if (reader.getDescriptor().getCommand().is(DoExchange.onlyMetadata.class)) {
         metadataOnly(context, reader, writer);
-      } else if (Arrays.equals(reader.getDescriptor().getCommand(), EXCHANGE_DO_GET)) {
+      } else if (reader.getDescriptor().getCommand().is(DoExchange.doGet.class)) {
         doGet(context, reader, writer);
-      } else if (Arrays.equals(reader.getDescriptor().getCommand(), EXCHANGE_DO_PUT)) {
+      } else if (reader.getDescriptor().getCommand().is(DoExchange.doPut.class)) {
         doPut(context, reader, writer);
-      } else if (Arrays.equals(reader.getDescriptor().getCommand(), EXCHANGE_ECHO)) {
+      } else if (reader.getDescriptor().getCommand().is(DoExchange.echo.class)) {
         echo(context, reader, writer);
-      } else if (Arrays.equals(reader.getDescriptor().getCommand(), EXCHANGE_TRANSFORM)) {
+      } else if (reader.getDescriptor().getCommand().is(DoExchange.transform.class)) {
         transform(context, reader, writer);
       } else {
         writer.error(CallStatus.UNIMPLEMENTED.withDescription("Command not implemented").toRuntimeException());

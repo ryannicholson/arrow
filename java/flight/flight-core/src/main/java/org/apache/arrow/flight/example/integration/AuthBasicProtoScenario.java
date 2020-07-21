@@ -17,8 +17,10 @@
 
 package org.apache.arrow.flight.example.integration;
 
+
+import static org.apache.arrow.flight.middleware.impl.AuthBasicProtoScenario.Identity;
+
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Optional;
 
 import org.apache.arrow.flight.Action;
@@ -35,6 +37,9 @@ import org.apache.arrow.flight.auth.BasicClientAuthHandler;
 import org.apache.arrow.flight.auth.BasicServerAuthHandler;
 import org.apache.arrow.memory.BufferAllocator;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+
 /**
  * A scenario testing the built-in basic authentication Protobuf.
  */
@@ -48,7 +53,7 @@ final class AuthBasicProtoScenario implements Scenario {
     return new NoOpFlightProducer() {
       @Override
       public void doAction(CallContext context, Action action, StreamListener<Result> listener) {
-        listener.onNext(new Result(context.peerIdentity().getBytes(StandardCharsets.UTF_8)));
+        listener.onNext(new Result(Any.pack(Identity.newBuilder().setUsername(context.peerIdentity()).build())));
         listener.onCompleted();
       }
     };
@@ -90,8 +95,15 @@ final class AuthBasicProtoScenario implements Scenario {
 
     client.authenticate(new BasicClientAuthHandler(USERNAME, PASSWORD));
     final Result result = client.doAction(new Action("")).next();
-    if (!USERNAME.equals(new String(result.getBody(), StandardCharsets.UTF_8))) {
-      throw new AssertionError("Expected " + USERNAME + " but got " + Arrays.toString(result.getBody()));
+    final Identity identity;
+    try {
+      identity = result.getBody().unpack(Identity.class);
+    } catch (InvalidProtocolBufferException invalidProtocolBufferException) {
+      throw new AssertionError("Expected message " + Identity.class.getName() +
+              " but got " + result.getBody().getTypeUrl());
+    }
+    if (!USERNAME.equals(identity.getUsername())) {
+      throw new AssertionError("Expected " + USERNAME + " but got " + identity.getUsername());
     }
   }
 }

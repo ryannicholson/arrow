@@ -19,7 +19,7 @@ package org.apache.arrow.flight;
 
 import org.apache.arrow.flight.impl.Flight;
 
-import com.google.protobuf.ByteString;
+import com.google.protobuf.Any;
 
 /**
  * Opaque result returned after executing an action.
@@ -28,23 +28,23 @@ import com.google.protobuf.ByteString;
  */
 public class Result {
 
-  private final byte[] body;
+  private final Any body;
 
-  public Result(byte[] body) {
+  public Result(Any body) {
     this.body = body;
   }
 
   Result(Flight.Result result) {
-    this.body = result.getBody().toByteArray();
+    this.body = result.getBody();
   }
 
-  public byte[] getBody() {
+  public Any getBody() {
     return body;
   }
 
   Flight.Result toProtocol() {
     return Flight.Result.newBuilder()
-        .setBody(ByteString.copyFrom(body))
+        .setBody(body)
         .build();
   }
 }

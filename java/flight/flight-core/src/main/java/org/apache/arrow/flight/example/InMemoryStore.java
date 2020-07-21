@@ -148,7 +148,7 @@ public class InMemoryStore implements FlightProducer, AutoCloseable {
     switch (action.getType()) {
       case "drop": {
         // not implemented.
-        listener.onNext(new Result(new byte[0]));
+        listener.onNext(new Result(null));
         listener.onCompleted();
         break;
       }

@@ -28,9 +28,15 @@ import java.util.Objects;
 import java.util.Random;
 import java.util.function.Function;
 
+import org.apache.arrow.flight.wrappers.impl.Wrappers;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.function.Executable;
+
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 
 /**
  * Utility methods and constants for testing flight servers.
@@ -132,6 +138,28 @@ public class FlightTestUtil {
     final FlightRuntimeException ex = Assertions.assertThrows(FlightRuntimeException.class, r);
     Assert.assertEquals(code, ex.status().code());
     return ex.status();
+  }
+
+  public static Any buildBytesWrapper(byte[] data) {
+    return Any.pack(Wrappers.bytesWrapper
+            .newBuilder()
+            .setData(ByteString.copyFrom(data))
+            .build());
+  }
+
+  public static Any buildStringWrapper(String message) {
+    return Any.pack(Wrappers.stringWrapper
+            .newBuilder()
+            .setMessage(message)
+            .build());
+  }
+
+  public static <T extends Message> T unpackOrAssert(Any source, Class<T> as) {
+    try {
+      return source.unpack(as);
+    } catch (InvalidProtocolBufferException e) {
+      throw new AssertionError(e.getMessage());
+    }
   }
 
   public static class CertKeyPair {

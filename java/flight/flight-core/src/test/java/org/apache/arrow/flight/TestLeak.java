@@ -17,6 +17,8 @@
 
 package org.apache.arrow.flight;
 
+import static org.apache.arrow.flight.FlightTestUtil.buildBytesWrapper;
+
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -94,7 +96,7 @@ public class TestLeak {
         final FlightClient client = FlightClient.builder(allocator, s.getLocation()).build()) {
 
       try (final VectorSchemaRoot root = VectorSchemaRoot.create(getSchema(), allocator)) {
-        final FlightDescriptor descriptor = FlightDescriptor.command(new byte[0]);
+        final FlightDescriptor descriptor = FlightDescriptor.command(buildBytesWrapper(new byte[0]));
         final SyncPutListener listener = new SyncPutListener();
         final FlightClient.ClientStreamListener stream = client.startPut(descriptor, root, listener);
         // Wait for the server to cancel

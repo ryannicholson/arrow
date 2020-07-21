@@ -17,6 +17,10 @@
 
 package org.apache.arrow.flight;
 
+import static org.apache.arrow.flight.FlightTestUtil.buildBytesWrapper;
+import static org.apache.arrow.flight.FlightTestUtil.buildStringWrapper;
+import static org.apache.arrow.flight.FlightTestUtil.unpackOrAssert;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
@@ -33,6 +37,7 @@ import java.util.function.Consumer;
 import org.apache.arrow.flight.FlightClient.ClientStreamListener;
 import org.apache.arrow.flight.impl.Flight;
 import org.apache.arrow.flight.impl.Flight.FlightDescriptor.DescriptorType;
+import org.apache.arrow.flight.wrappers.impl.Wrappers;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.BigIntVector;
@@ -45,8 +50,7 @@ import org.apache.arrow.vector.types.pojo.Schema;
 import org.junit.Assert;
 import org.junit.Test;
 
-import com.google.common.base.Charsets;
-import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 
 /**
  * Test the operations of a basic flight service.
@@ -89,7 +93,7 @@ public class TestBasicOperation {
         Field.nullable("b", new ArrowType.FixedSizeBinary(32))
     ), metadata);
     final FlightInfo info1 = new FlightInfo(schema, FlightDescriptor.path(), Collections.emptyList(), -1, -1);
-    final FlightInfo info2 = new FlightInfo(schema, FlightDescriptor.command(new byte[2]),
+    final FlightInfo info2 = new FlightInfo(schema, FlightDescriptor.command(buildBytesWrapper(new byte[2])),
         Collections.singletonList(new FlightEndpoint(
             new Ticket(new byte[10]), Location.forGrpcDomainSocket("/tmp/test.sock"))), 200, 500);
     final FlightInfo info3 = new FlightInfo(schema, FlightDescriptor.path("a", "b"),
@@ -107,7 +111,7 @@ public class TestBasicOperation {
 
   @Test
   public void roundTripDescriptor() throws Exception {
-    final FlightDescriptor cmd = FlightDescriptor.command("test command".getBytes(StandardCharsets.UTF_8));
+    final FlightDescriptor cmd = FlightDescriptor.command(buildStringWrapper("test command"));
     Assert.assertEquals(cmd, FlightDescriptor.deserialize(cmd.serialize()));
     final FlightDescriptor path = FlightDescriptor.path("foo", "bar", "test.arrow");
     Assert.assertEquals(path, FlightDescriptor.deserialize(path.serialize()));
@@ -166,18 +170,21 @@ public class TestBasicOperation {
 
       Assert.assertTrue(stream.hasNext());
       Result r = stream.next();
-      Assert.assertArrayEquals("world".getBytes(Charsets.UTF_8), r.getBody());
+      try {
+        Assert.assertEquals("world", r.getBody().unpack(Wrappers.stringWrapper.class).getMessage());
+      } catch (InvalidProtocolBufferException e) {
+        Assert.fail(e.getMessage());
+      }
     });
     test(c -> {
       Iterator<Result> stream = c.doAction(new Action("hellooo"));
 
       Assert.assertTrue(stream.hasNext());
       Result r = stream.next();
-      Assert.assertArrayEquals("world".getBytes(Charsets.UTF_8), r.getBody());
-
+      Assert.assertEquals("world", unpackOrAssert(r.getBody(), Wrappers.stringWrapper.class).getMessage());
       Assert.assertTrue(stream.hasNext());
       r = stream.next();
-      Assert.assertArrayEquals("!".getBytes(Charsets.UTF_8), r.getBody());
+      Assert.assertEquals("!", unpackOrAssert(r.getBody(), Wrappers.stringWrapper.class).getMessage());
       Assert.assertFalse(stream.hasNext());
     });
   }
@@ -341,7 +348,7 @@ public class TestBasicOperation {
       Flight.FlightInfo getInfo = Flight.FlightInfo.newBuilder()
           .setFlightDescriptor(Flight.FlightDescriptor.newBuilder()
               .setType(DescriptorType.CMD)
-              .setCmd(ByteString.copyFrom("cool thing", Charsets.UTF_8)))
+              .setCmd(buildStringWrapper("cool thing")))
           .build();
       try {
         listener.onNext(new FlightInfo(getInfo));
@@ -425,7 +432,7 @@ public class TestBasicOperation {
         Flight.FlightInfo getInfo = Flight.FlightInfo.newBuilder()
             .setFlightDescriptor(Flight.FlightDescriptor.newBuilder()
                 .setType(DescriptorType.CMD)
-                .setCmd(ByteString.copyFrom("cool thing", Charsets.UTF_8)))
+                .setCmd(buildStringWrapper("cool thing")))
             .addEndpoint(
                 Flight.FlightEndpoint.newBuilder().addLocation(new Location("https://example.com").toProtocol()))
             .build();
@@ -440,13 +447,13 @@ public class TestBasicOperation {
         StreamListener<Result> listener) {
       switch (action.getType()) {
         case "hello": {
-          listener.onNext(new Result("world".getBytes(Charsets.UTF_8)));
+          listener.onNext(new Result(buildStringWrapper("world")));
           listener.onCompleted();
           break;
         }
         case "hellooo": {
-          listener.onNext(new Result("world".getBytes(Charsets.UTF_8)));
-          listener.onNext(new Result("!".getBytes(Charsets.UTF_8)));
+          listener.onNext(new Result(buildStringWrapper("world")));
+          listener.onNext(new Result(buildStringWrapper("!")));
           listener.onCompleted();
           break;
         }

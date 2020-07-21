@@ -17,8 +17,8 @@
 
 package org.apache.arrow.flight.example.integration;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
+import static org.apache.arrow.flight.middleware.impl.MiddlewareScenario.Success;
+
 import java.util.Collections;
 
 import org.apache.arrow.flight.CallHeaders;
@@ -37,6 +37,8 @@ import org.apache.arrow.flight.NoOpFlightProducer;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import com.google.protobuf.Any;
+
 /**
  * Test an edge case in middleware: gRPC-Java consolidates headers and trailers if a call fails immediately. On the
  * gRPC implementation side, we need to watch for this, or else we'll have a call with "no headers" if we only look
@@ -46,7 +48,6 @@ final class MiddlewareScenario implements Scenario {
 
   private static final String HEADER = "x-middleware";
   private static final String EXPECTED_HEADER_VALUE = "expected value";
-  private static final byte[] COMMAND_SUCCESS = "success".getBytes(StandardCharsets.UTF_8);
 
   @Override
   public FlightProducer producer(BufferAllocator allocator, Location location) {
@@ -54,7 +55,7 @@ final class MiddlewareScenario implements Scenario {
       @Override
       public FlightInfo getFlightInfo(CallContext context, FlightDescriptor descriptor) {
         if (descriptor.isCommand()) {
-          if (Arrays.equals(COMMAND_SUCCESS, descriptor.getCommand())) {
+          if (descriptor.getCommand().is(Success.class)) {
             return new FlightInfo(new Schema(Collections.emptyList()), descriptor, Collections.emptyList(), -1, -1);
           }
         }
@@ -74,7 +75,7 @@ final class MiddlewareScenario implements Scenario {
     try (final FlightClient client = FlightClient.builder(allocator, location).intercept(factory).build()) {
       // Should fail immediately
       IntegrationAssertions.assertThrows(FlightRuntimeException.class,
-          () -> client.getInfo(FlightDescriptor.command(new byte[0])));
+          () -> client.getInfo(FlightDescriptor.command(null)));
       if (!EXPECTED_HEADER_VALUE.equals(factory.extractedHeader)) {
         throw new AssertionError(
             "Expected to extract the header value '" +
@@ -85,7 +86,7 @@ final class MiddlewareScenario implements Scenario {
 
       // Should not fail
       factory.extractedHeader = "";
-      client.getInfo(FlightDescriptor.command(COMMAND_SUCCESS));
+      client.getInfo(FlightDescriptor.command(Any.pack(Success.newBuilder().build())));
       if (!EXPECTED_HEADER_VALUE.equals(factory.extractedHeader)) {
         throw new AssertionError(
             "Expected to extract the header value '" +

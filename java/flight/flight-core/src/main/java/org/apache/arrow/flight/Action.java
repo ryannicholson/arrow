@@ -19,7 +19,7 @@ package org.apache.arrow.flight;
 
 import org.apache.arrow.flight.impl.Flight;
 
-import com.google.protobuf.ByteString;
+import com.google.protobuf.Any;
 
 /**
  * An opaque action for the service to perform.
@@ -27,35 +27,36 @@ import com.google.protobuf.ByteString;
  * <p>This is a POJO wrapper around the message of the same name in Flight.proto.
  */
 public class Action {
+  private static final Any NO_VALUE = Any.getDefaultInstance();
 
   private final String type;
-  private final byte[] body;
+  private final Any body;
 
   public Action(String type) {
-    this(type, null);
+    this(type, NO_VALUE);
   }
 
-  public Action(String type, byte[] body) {
+  public Action(String type, Any body) {
     this.type = type;
-    this.body = body == null ? new byte[0] : body;
+    this.body = body;
   }
 
   Action(Flight.Action action) {
-    this(action.getType(), action.getBody().toByteArray());
+    this(action.getType(), action.getBody());
   }
 
   public String getType() {
     return type;
   }
 
-  public byte[] getBody() {
+  public Any getBody() {
     return body;
   }
 
   Flight.Action toProtocol() {
     return Flight.Action.newBuilder()
         .setType(getType())
-        .setBody(ByteString.copyFrom(getBody()))
+        .setBody(getBody())
         .build();
   }
 }

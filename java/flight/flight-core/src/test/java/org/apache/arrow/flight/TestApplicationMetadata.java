@@ -17,13 +17,15 @@
 
 package org.apache.arrow.flight;
 
-import java.util.Arrays;
+import static org.apache.arrow.flight.FlightTestUtil.buildBytesWrapper;
+
 import java.util.Collections;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import org.apache.arrow.flight.FlightClient.PutListener;
+import org.apache.arrow.flight.command6136.impl.Command6136;
 import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
@@ -36,13 +38,12 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import com.google.protobuf.Any;
+
 /**
  * Tests for application-specific metadata support in Flight.
  */
 public class TestApplicationMetadata {
-
-  // The command used to trigger the test for ARROW-6136.
-  private static final byte[] COMMAND_ARROW_6136 = "ARROW-6136".getBytes();
   // The expected error message.
   private static final String MESSAGE_ARROW_6136 = "The stream should not be double-closed.";
 
@@ -75,7 +76,8 @@ public class TestApplicationMetadata {
     final Schema schema = new Schema(Collections.emptyList());
     test((allocator, client) -> {
       try (final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
-        final FlightDescriptor descriptor = FlightDescriptor.command(COMMAND_ARROW_6136);
+        final FlightDescriptor descriptor = FlightDescriptor.command(
+                Any.pack(Command6136.command6136.newBuilder().build()));
 
         final PutListener listener = new SyncPutListener();
         final FlightClient.ClientStreamListener writer = client.startPut(descriptor, root, listener);
@@ -210,7 +212,7 @@ public class TestApplicationMetadata {
                  .build());
          final FlightClient client = FlightClient.builder(allocator, server.getLocation()).build()) {
       final Schema schema = new Schema(Collections.emptyList());
-      final FlightDescriptor descriptor = FlightDescriptor.command(new byte[0]);
+      final FlightDescriptor descriptor = FlightDescriptor.command(buildBytesWrapper(new byte[0]));
       try (final SyncPutListener reader = new SyncPutListener();
            final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
         final FlightClient.ClientStreamListener writer = client.startPut(descriptor, root, reader);
@@ -274,7 +276,7 @@ public class TestApplicationMetadata {
         // Wait for the descriptor to be sent
         stream.getRoot();
         if (stream.getDescriptor().isCommand() &&
-            Arrays.equals(stream.getDescriptor().getCommand(), COMMAND_ARROW_6136)) {
+            stream.getDescriptor().getCommand().is(Command6136.command6136.class)) {
           // ARROW-6136: Try closing the stream
           ackStream.onError(
               CallStatus.INTERNAL.withDescription(MESSAGE_ARROW_6136).toRuntimeException());

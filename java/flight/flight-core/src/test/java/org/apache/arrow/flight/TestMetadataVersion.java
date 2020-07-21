@@ -70,7 +70,7 @@ public class TestMetadataVersion {
   public void testGetFlightInfoV4() throws Exception {
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server)) {
-      final FlightInfo result = client.getInfo(FlightDescriptor.command(new byte[0]));
+      final FlightInfo result = client.getInfo(FlightDescriptor.command(null));
       assertEquals(schema, result.getSchema());
     }
   }
@@ -79,7 +79,7 @@ public class TestMetadataVersion {
   public void testGetSchemaV4() throws Exception {
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server)) {
-      final SchemaResult result = client.getSchema(FlightDescriptor.command(new byte[0]));
+      final SchemaResult result = client.getSchema(FlightDescriptor.command(null));
       assertEquals(schema, result.getSchema());
     }
   }
@@ -88,7 +88,7 @@ public class TestMetadataVersion {
   public void testUnionCheck() throws Exception {
     assertThrows(IllegalArgumentException.class, () -> new SchemaResult(unionSchema, optionV4));
     assertThrows(IllegalArgumentException.class, () ->
-        new FlightInfo(unionSchema, FlightDescriptor.command(new byte[0]), Collections.emptyList(), -1, -1, optionV4));
+        new FlightInfo(unionSchema, FlightDescriptor.command(null), Collections.emptyList(), -1, -1, optionV4));
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server);
          final FlightStream stream = client.getStream(new Ticket("union".getBytes(StandardCharsets.UTF_8)))) {
@@ -99,7 +99,7 @@ public class TestMetadataVersion {
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server);
          final VectorSchemaRoot root = VectorSchemaRoot.create(unionSchema, allocator)) {
-      final FlightDescriptor descriptor = FlightDescriptor.command(new byte[0]);
+      final FlightDescriptor descriptor = FlightDescriptor.command(null);
       final SyncPutListener reader = new SyncPutListener();
       final FlightClient.ClientStreamListener listener = client.startPut(descriptor, reader);
       final IllegalArgumentException err = assertThrows(IllegalArgumentException.class,
@@ -114,7 +114,7 @@ public class TestMetadataVersion {
          final FlightClient client = connect(server);
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator)) {
       generateData(root);
-      final FlightDescriptor descriptor = FlightDescriptor.command(new byte[0]);
+      final FlightDescriptor descriptor = FlightDescriptor.command(null);
       final SyncPutListener reader = new SyncPutListener();
       final FlightClient.ClientStreamListener listener = client.startPut(descriptor, reader);
       listener.start(root, null, optionV4);
@@ -141,7 +141,7 @@ public class TestMetadataVersion {
     try (final FlightServer server = startServer(optionV5);
          final FlightClient client = connect(server);
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator);
-         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(new byte[0]))) {
+         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(null))) {
       stream.getWriter().start(root, null, optionV4);
       generateData(root);
       stream.getWriter().putNext();
@@ -158,7 +158,7 @@ public class TestMetadataVersion {
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server);
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator);
-         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(new byte[0]))) {
+         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(null))) {
       stream.getWriter().start(root, null, optionV5);
       generateData(root);
       stream.getWriter().putNext();
@@ -175,7 +175,7 @@ public class TestMetadataVersion {
     try (final FlightServer server = startServer(optionV4);
          final FlightClient client = connect(server);
          final VectorSchemaRoot root = VectorSchemaRoot.create(schema, allocator);
-         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(new byte[0]))) {
+         final FlightClient.ExchangeReaderWriter stream = client.doExchange(FlightDescriptor.command(null))) {
       stream.getWriter().start(root, null, optionV4);
       generateData(root);
       stream.getWriter().putNext();

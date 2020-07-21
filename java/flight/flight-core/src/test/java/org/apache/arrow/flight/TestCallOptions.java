@@ -17,6 +17,9 @@
 
 package org.apache.arrow.flight;
 
+import static org.apache.arrow.flight.FlightTestUtil.buildBytesWrapper;
+import static org.apache.arrow.flight.FlightTestUtil.unpackOrAssert;
+
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +27,7 @@ import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
+import org.apache.arrow.flight.wrappers.impl.Wrappers;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.junit.Assert;
@@ -58,7 +62,8 @@ public class TestCallOptions {
       Instant start = Instant.now();
       // This shouldn't fail and it should complete within the timeout
       Iterator<Result> results = client.doAction(new Action("fast"), CallOptions.timeout(2, TimeUnit.SECONDS));
-      Assert.assertArrayEquals(new byte[]{42, 42}, results.next().getBody());
+      Assert.assertArrayEquals(new byte[]{42, 42},
+              unpackOrAssert(results.next().getBody(), Wrappers.bytesWrapper.class).getData().toByteArray());
       Instant end = Instant.now();
       Assert.assertTrue("Call took over 2500 ms despite timeout", Duration.between(start, end).toMillis() < 2500);
     });
@@ -98,7 +103,7 @@ public class TestCallOptions {
           } catch (InterruptedException e) {
             throw new RuntimeException(e);
           }
-          listener.onNext(new Result(new byte[]{}));
+          listener.onNext(new Result(buildBytesWrapper(new byte[]{})));
           listener.onCompleted();
           return;
         }
@@ -108,7 +113,7 @@ public class TestCallOptions {
           } catch (InterruptedException e) {
             throw new RuntimeException(e);
           }
-          listener.onNext(new Result(new byte[]{42, 42}));
+          listener.onNext(new Result(buildBytesWrapper(new byte[]{42, 42})));
           listener.onCompleted();
           return;
         }

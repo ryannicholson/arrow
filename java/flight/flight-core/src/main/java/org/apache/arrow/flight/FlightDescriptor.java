@@ -19,7 +19,6 @@ package org.apache.arrow.flight;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.arrow.flight.impl.Flight;
@@ -28,7 +27,7 @@ import org.apache.arrow.util.Preconditions;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
-import com.google.protobuf.ByteString;
+import com.google.protobuf.Any;
 
 /**
  * An identifier for a particular set of data.  This can either be an opaque command that generates
@@ -37,36 +36,39 @@ import com.google.protobuf.ByteString;
  */
 public class FlightDescriptor {
 
+  private static final Any NO_VALUE = Any.getDefaultInstance();
+
   private boolean isCmd;
   private List<String> path;
-  private byte[] cmd;
+  private Any cmd;
 
-  private FlightDescriptor(boolean isCmd, List<String> path, byte[] cmd) {
+  private FlightDescriptor(boolean isCmd, List<String> path, Any cmd) {
     super();
     this.isCmd = isCmd;
     this.path = path;
     this.cmd = cmd;
   }
 
-  public static FlightDescriptor command(byte[] cmd) {
-    return new FlightDescriptor(true, null, cmd);
+  public static FlightDescriptor command(Any cmd) {
+    return new FlightDescriptor(true, null, (cmd != null ? cmd : NO_VALUE));
   }
 
   public static FlightDescriptor path(Iterable<String> path) {
-    return new FlightDescriptor(false, ImmutableList.copyOf(path), null);
+    return new FlightDescriptor(false, ImmutableList.copyOf(path), NO_VALUE);
   }
 
   public static FlightDescriptor path(String...path) {
-    return new FlightDescriptor(false, ImmutableList.copyOf(path), null);
+    return new FlightDescriptor(false, ImmutableList.copyOf(path), NO_VALUE);
   }
 
   FlightDescriptor(Flight.FlightDescriptor descriptor) {
     if (descriptor.getType() == DescriptorType.CMD) {
       isCmd = true;
-      cmd = descriptor.getCmd().toByteArray();
+      cmd = descriptor.getCmd();
     } else if (descriptor.getType() == DescriptorType.PATH) {
       isCmd = false;
       path = descriptor.getPathList();
+      cmd = NO_VALUE;
     } else {
       throw new UnsupportedOperationException();
     }
@@ -81,7 +83,7 @@ public class FlightDescriptor {
     return path;
   }
 
-  public byte[] getCommand() {
+  public Any getCommand() {
     Preconditions.checkArgument(isCmd);
     return cmd;
   }
@@ -90,9 +92,9 @@ public class FlightDescriptor {
     Flight.FlightDescriptor.Builder b = Flight.FlightDescriptor.newBuilder();
 
     if (isCmd) {
-      return b.setType(DescriptorType.CMD).setCmd(ByteString.copyFrom(cmd)).build();
+      return b.setType(DescriptorType.CMD).setCmd(cmd).build();
     }
-    return b.setType(DescriptorType.PATH).addAllPath(path).build();
+    return b.setType(DescriptorType.PATH).addAllPath(path).setCmd(NO_VALUE).build();
   }
 
   /**
@@ -120,25 +122,17 @@ public class FlightDescriptor {
   @Override
   public String toString() {
     if (isCmd) {
-      return toHex(cmd);
+      return cmd.toString();
     } else {
       return Joiner.on('.').join(path);
     }
-  }
-
-  private String toHex(byte[] bytes) {
-    StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) {
-      sb.append(String.format("%02X ", b));
-    }
-    return sb.toString();
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((cmd == null) ? 0 : Arrays.hashCode(cmd));
+    result = prime * result + cmd.hashCode();
     result = prime * result + (isCmd ? 1231 : 1237);
     result = prime * result + ((path == null) ? 0 : path.hashCode());
     return result;
@@ -156,11 +150,7 @@ public class FlightDescriptor {
       return false;
     }
     FlightDescriptor other = (FlightDescriptor) obj;
-    if (cmd == null) {
-      if (other.cmd != null) {
-        return false;
-      }
-    } else if (!Arrays.equals(cmd, other.cmd)) {
+    if (!cmd.equals(other.cmd)) {
       return false;
     }
     if (isCmd != other.isCmd) {

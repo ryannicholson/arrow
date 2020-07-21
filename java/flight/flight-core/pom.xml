@@ -246,9 +246,20 @@
         </configuration>
         <executions>
           <execution>
-            <id>src</id>
+            <id>src-format</id>
             <configuration>
               <protoSourceRoot>${basedir}/../../../format/</protoSourceRoot>
+              <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
+            </configuration>
+            <goals>
+              <goal>compile</goal>
+              <goal>compile-custom</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>src-core</id>
+            <configuration>
+              <protoSourceRoot>${basedir}/src/main/protobuf</protoSourceRoot>
               <outputDirectory>${project.build.directory}/generated-sources/protobuf</outputDirectory>
             </configuration>
             <goals>
@@ -260,7 +271,7 @@
             <id>test</id>
             <configuration>
               <protoSourceRoot>${basedir}/src/test/protobuf</protoSourceRoot>
-              <outputDirectory>${project.build.directory}/generated-test-sources//protobuf</outputDirectory>
+              <outputDirectory>${project.build.directory}/generated-test-sources/protobuf</outputDirectory>
             </configuration>
             <goals>
               <goal>compile</goal>

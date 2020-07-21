@@ -47,6 +47,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 
 @org.junit.Ignore
@@ -64,13 +65,12 @@ public class TestPerf {
 
     ByteString serializedSchema = ByteString.copyFrom(pojoSchema.toByteArray());
 
-    return FlightDescriptor.command(Perf.newBuilder()
+    return FlightDescriptor.command(Any.pack(Perf.newBuilder()
         .setRecordsPerStream(recordCount)
         .setRecordsPerBatch(recordsPerBatch)
         .setSchema(serializedSchema)
         .setStreamCount(streamCount)
-        .build()
-        .toByteArray());
+        .build()));
   }
 
   public static void main(String[] args) throws Exception {

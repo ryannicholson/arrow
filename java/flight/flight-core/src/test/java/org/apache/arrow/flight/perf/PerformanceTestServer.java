@@ -143,7 +143,7 @@ public class PerformanceTestServer implements AutoCloseable {
         FlightDescriptor descriptor) {
       try {
         Preconditions.checkArgument(descriptor.isCommand());
-        Perf exec = Perf.parseFrom(descriptor.getCommand());
+        Perf exec = descriptor.getCommand().unpack(Perf.class);
 
         final Schema pojoSchema = new Schema(ImmutableList.of(
             Field.nullable("a", MinorType.BIGINT.getType()),
